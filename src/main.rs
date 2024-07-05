@@ -1,7 +1,10 @@
 use ndarray::prelude::*;
 mod games;
+mod mcts;
 
 use games::tictactoe::TicTacToe;
+use crate::mcts::MCTS;
+
 fn main() {
     let one_move_to_win: Array2<i8> = array![
         [1,-1,0],
@@ -9,7 +12,7 @@ fn main() {
         [-1,0,0]];
     let mut tictactoe = TicTacToe::new();
     let almost_won = tictactoe.get_state(one_move_to_win);
-    //let mcts = MCTS::new(almost_won)
+    let mcts = MCTS::new(almost_won);
     //mcts.search(50) 
     //winning_move = max(mcts.root.children, key=lambda child: child.Q)
     println!("{:?}", &almost_won)

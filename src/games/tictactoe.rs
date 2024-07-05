@@ -1,7 +1,24 @@
 use std::collections::HashMap;
 use std::fmt;
+use super::GameState;
 use ndarray::prelude::*;
 
+pub struct TicTacToe {
+    game_states: HashMap<Array2<i8>,TicTacToeState>
+}
+
+impl TicTacToe {
+    pub fn new() -> Self {
+        TicTacToe {
+            game_states: HashMap::new()
+        }
+    }
+
+    pub fn get_state(&mut self, state: Array2<i8>) -> &TicTacToeState {
+            self.game_states.entry(state)
+                .or_insert_with_key(|state: &Array2<i8>| TicTacToeState::new(state.clone()))
+    }
+}
 #[derive(Debug)]
 pub struct TicTacToeState {
     state: Array2<i8>,
@@ -74,19 +91,23 @@ impl fmt::Display for TicTacToeState {
     }
 }
 
-pub struct TicTacToe {
-    game_states: HashMap<Array2<i8>,TicTacToeState>
-}
-
-impl TicTacToe {
-    pub fn new() -> Self {
-        TicTacToe {
-            game_states: HashMap::new()
-        }
+impl GameState for TicTacToeState {
+    fn state(&self) -> &Array2<i8> {
+        &self.state
+    }
+    fn is_terminal(&self) -> bool {
+        self.is_terminal
     }
 
-    pub fn get_state(&mut self, state: Array2<i8>) -> &TicTacToeState {
-            self.game_states.entry(state)
-                .or_insert_with_key(|state: &Array2<i8>| TicTacToeState::new(state.clone()))
+    fn player(&self) -> i8 {
+        self.player
+    }
+
+    fn result(&self) -> Option<i8> {
+        self.result
+    }
+
+    fn all_legal_actions(&self) -> &Array1<(usize, usize)> {
+        &self.all_legal_actions
     }
 }
