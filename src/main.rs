@@ -1,19 +1,21 @@
 use ndarray::prelude::*;
 mod games;
 mod mcts;
+use games::tictactoe::{TicTacToe, TicTacToeState};
 
-use games::tictactoe::TicTacToe;
-use crate::mcts::MCTS;
+fn explore_states<'a>(game: &mut TicTacToe<'a>, state: &'a TicTacToeState) {
+
+    for action in state.all_legal_actions.iter() {
+        let next_state = game.transition(state,*action);
+        explore_states(game, next_state)
+    }
+}
 
 fn main() {
-    let one_move_to_win: Array2<i8> = array![
-        [1,-1,0],
-        [1,1,-1],
-        [-1,0,0]];
     let mut tictactoe = TicTacToe::new();
-    let almost_won = tictactoe.get_state(one_move_to_win);
-    let mcts = MCTS::new(almost_won);
-    //mcts.search(50) 
-    //winning_move = max(mcts.root.children, key=lambda child: child.Q)
-    println!("{:?}", &almost_won)
+    let empty_board = Array2::zeros((3, 3)); // Initial empty board key
+    let initial_state = tictactoe.get_state(&empty_board);
+    explore_states(&mut tictactoe, initial_state);
+
+    println!("Total number of states: {}", tictactoe.game_states.len());
 }

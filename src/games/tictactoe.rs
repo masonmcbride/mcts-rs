@@ -1,31 +1,38 @@
 use std::collections::HashMap;
 use std::fmt;
-use super::GameState;
 use ndarray::prelude::*;
 
-pub struct TicTacToe {
-    game_states: HashMap<Array2<i8>,TicTacToeState>
+pub struct TicTacToe<'a> {
+    pub game_states: HashMap<Array2<i8>, &'a TicTacToeState>
 }
 
-impl TicTacToe {
+impl<'a> TicTacToe<'a> {
     pub fn new() -> Self {
-        TicTacToe {
-            game_states: HashMap::new()
-        }
+        TicTacToe { game_states: HashMap::new() }
     }
 
-    pub fn get_state(&mut self, state: Array2<i8>) -> &TicTacToeState {
-            self.game_states.entry(state)
-                .or_insert_with_key(|state: &Array2<i8>| TicTacToeState::new(state.clone()))
+    pub fn get_state(&mut self, board: &Array2<i8>) -> &'a TicTacToeState {
+        self.game_states.entry(board.clone()).or_insert_with(|| {
+            let new_state = TicTacToeState::new(board.clone());
+            Box::leak(Box::new(new_state))
+        })
     }
+
+    pub fn transition(&mut self, game_state: &'a TicTacToeState, action: (usize, usize)) -> &'a TicTacToeState {
+        let mut new_state = game_state.state.clone();
+        new_state[action] = game_state.player;
+        self.get_state(&new_state)
+    }
+
 }
+//#[derive(Debug,std::hash::Hash,PartialEq,Eq)]
 #[derive(Debug)]
 pub struct TicTacToeState {
     state: Array2<i8>,
     player: i8,
     result: Option<i8>,
     is_terminal: bool,
-    all_legal_actions: Array1<(usize,usize)>
+    pub all_legal_actions: Array1<(usize,usize)>
 }
 
 impl TicTacToeState {
@@ -49,7 +56,7 @@ impl TicTacToeState {
             all_legal_actions
         }
 }
-
+    #[inline]
     fn game_result(state: &Array2<i8>) -> Option<i8> {
         let three_in_a_row = 3;
         let rowsum = state.sum_axis(Axis(0));
@@ -91,6 +98,7 @@ impl fmt::Display for TicTacToeState {
     }
 }
 
+/* 
 impl GameState for TicTacToeState {
     fn state(&self) -> &Array2<i8> {
         &self.state
@@ -111,3 +119,4 @@ impl GameState for TicTacToeState {
         &self.all_legal_actions
     }
 }
+*/

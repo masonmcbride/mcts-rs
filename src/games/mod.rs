@@ -1,5 +1,5 @@
-use ndarray::prelude::*;
 pub mod tictactoe;
+/*
 pub trait GameState: Sized + std::hash::Hash + Eq {
     fn state(&self) -> &Array2<i8>;
     fn is_terminal(&self) -> bool;
@@ -7,3 +7,4 @@ pub trait GameState: Sized + std::hash::Hash + Eq {
     fn result(&self) -> Option<i8>;
     fn all_legal_actions(&self) -> &Array1<(usize, usize)>;
 }
+*/
