@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use super::games::tictactoe::{TicTacToe, TicTacToeState};
+
 
 pub struct MCTSNode {
     game_state: i32,
@@ -12,7 +14,7 @@ pub struct MCTSNode {
 }
 
 impl MCTSNode {
-    pub fn new(game_state: i32) -> MCTSNode {
+    pub fn new(game_state: TicTacToeState) -> MCTSNode {
         let is_terminal = -32;
         MCTSNode {
             game_state,

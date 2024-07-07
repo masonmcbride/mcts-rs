@@ -4,22 +4,21 @@ mod games;
 mod mcts;
 use games::tictactoe::{TicTacToe, TicTacToeState};
 
-
-fn explore_states(game: &mut TicTacToe, state: Rc<TicTacToeState>) {
-    for action in state.all_legal_actions.iter() {
-        let next_state = game.transition(Rc::clone(&state), *action);
-        explore_states(game, next_state);
-    }
-}
-
 fn main() {
     let mut tictactoe = TicTacToe::new();
     let empty_board = Array2::zeros((3, 3)); // Initial empty board key
     let initial_state = tictactoe.get_state(&empty_board);
-    explore_states(&mut tictactoe, initial_state);
-    for (board, state) in tictactoe.game_states.iter() {
-        println!("Board: {:?}, Strong count: {}", board, Rc::strong_count(state));
+    let mut mcts = MCTS::new(initial_state);
+    mcts.search(1000);
+    
+    if let Some(best_child) = mcts.root.children.iter()
+                                                .max_by(|a, b| a.borrow().Q()
+                                                .partial_cmp(&b.borrow().Q())
+                                                .unwrap()) {
+        let best_state = &best_child.borrow().state.board;
+        println!("Winning move board state:\n{:?}", best_state);
+    } else {
+        println!("No children found");
     }
 
-    println!("Total number of states: {}", tictactoe.game_states.len());
 }
