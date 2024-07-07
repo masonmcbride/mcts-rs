@@ -1,13 +1,12 @@
 use std::rc::Rc;
-use std::cell::RefCell;
 use ndarray::prelude::*;
 mod games;
 mod mcts;
 use games::tictactoe::{TicTacToe, TicTacToeState};
 
 
-fn explore_states(game: &mut TicTacToe, state: Rc<RefCell<TicTacToeState>>) {
-    for action in state.borrow().all_legal_actions.iter() {
+fn explore_states(game: &mut TicTacToe, state: Rc<TicTacToeState>) {
+    for action in state.all_legal_actions.iter() {
         let next_state = game.transition(Rc::clone(&state), *action);
         explore_states(game, next_state);
     }

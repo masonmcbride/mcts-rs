@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use std::cell::RefCell;
 use ndarray::prelude::*;
 
 pub struct TicTacToe {
-    pub game_states: HashMap<Array2<i8>, Rc<RefCell<TicTacToeState>>>
+    pub game_states: HashMap<Array2<i8>, Rc<TicTacToeState>>
 }
 
 impl TicTacToe {
@@ -13,20 +12,20 @@ impl TicTacToe {
         TicTacToe { game_states: HashMap::new() }
     }
 
-    pub fn get_state(&mut self, board: &Array2<i8>) -> Rc<RefCell<TicTacToeState>> {
+    pub fn get_state(&mut self, board: &Array2<i8>) -> Rc<TicTacToeState> {
         if let Some(state) = self.game_states.get(board) {
             Rc::clone(state)
         } else {
             let new_state = TicTacToeState::new(board.clone());
-            let state_ref = Rc::new(RefCell::new(new_state));
+            let state_ref = Rc::new(new_state);
             self.game_states.insert(board.clone(), Rc::clone(&state_ref));
             state_ref
         }
     }
 
-    pub fn transition(&mut self, game_state: Rc<RefCell<TicTacToeState>>, action: (usize, usize)) -> Rc<RefCell<TicTacToeState>> {
-        let mut new_state = game_state.borrow().state.clone();
-        new_state[action] = game_state.borrow().player;
+    pub fn transition(&mut self, game_state: Rc<TicTacToeState>, action: (usize, usize)) -> Rc<TicTacToeState> {
+        let mut new_state = game_state.state.clone();
+        new_state[action] = game_state.player;
         self.get_state(&new_state)
     }
 }
