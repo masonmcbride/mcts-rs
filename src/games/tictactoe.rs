@@ -35,8 +35,8 @@ impl TicTacToe {
 pub struct TicTacToeState {
     state: Array2<i8>,
     player: i8,
-    result: Option<i8>,
-    is_terminal: bool,
+    pub result: Option<i8>,
+    pub is_terminal: bool,
     pub all_legal_actions: Array1<(usize,usize)>
 }
 
