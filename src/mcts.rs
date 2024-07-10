@@ -44,6 +44,7 @@ impl MCTS {
 
     }
     pub fn search(&mut self, node: Rc<RefCell<MCTSNode>>) {
+        /* Perform one search iteration of MCTS. This is equivalent to the tree 'thinking' */
         if node.borrow().is_terminal {
             // node.U = leaf node value
             node.borrow_mut().U = node.borrow().game_state.result.expect("Terminal state should have a reward").into();
@@ -87,6 +88,7 @@ impl MCTS {
     }
 
     fn rollout(&self, node: Rc<RefCell<MCTSNode>>) -> f64 {
+        /* Implement Rollout Capability for MCTS */
         1.
     }
 
