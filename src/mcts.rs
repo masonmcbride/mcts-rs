@@ -5,13 +5,13 @@ use super::games::tictactoe::{TicTacToe, TicTacToeState};
 
 
 pub struct MCTSNode {
-    game_state: Rc<TicTacToeState>,
+    game_state: TicTacToeState,
     is_terminal: bool,
     is_expanded: bool,
-    children_and_edge_visits: Vec<(Rc<RefCell<MCTSNode>>,f64)>,
-    N: f64,
-    Q: f64,
-    U: f64,
+    N: u32, // visit count
+    Q: f64, // reguralized value
+    children_and_edge_visits: Vec<MCTSNode, u32>,
+    results = Hasmap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
 }
 
 impl MCTSNode {
@@ -36,60 +36,38 @@ pub struct MCTS {
 
 impl MCTS {
 
-    pub fn new(game: Rc<TicTacToe>) -> Self {
+    pub fn new(game: MCTSNode) -> Self {
         MCTS {
             game: game,
             nodes: HashMap::new(),
         }
-
     }
-    pub fn search(&mut self, node: Rc<RefCell<MCTSNode>>) {
-        /* Perform one search iteration of MCTS. This is equivalent to the tree 'thinking' */
-        if node.borrow().is_terminal {
-            // node.U = leaf node value
-            node.borrow_mut().U = node.borrow().game_state.result.expect("Terminal state should have a reward").into();
-        } else if node.borrow().N == 0. {
-            // node.U = node rollout
-            node.borrow_mut().U = self.rollout(node.clone()); // Q does the strong counter decrease after this goes out of scope
-        } else {
-            // node.U 
-            
 
-            /* 
-            action = select_action_according_to_puct(node)
-            if action not in node.children_and_edge_visits:
-                new_game_state = node.game_state.play(action)
-                if new_game_state.hash in nodes_by_hash:
-                    child = nodes_by_hash[new_game_state.hash]
-                    node.children_and_edge_visits[action] = (child,0)
-                else:
-                    new_node = Node(N=0,Q=0,game_state=new_game_state)
-                    node.children_and_edge_visits[action] = (new_node,0)
-                    nodes_by_hash[new_game_state.hash] = new_node
-            (child,edge_visits) = node.children_and_edge_visits[action]
-            perform_one_playout(child)
-            node.children_and_edge_visits[action] = (child,edge_visits+1)
-            */
+    pub fn select(self: &mut tree) -> Vec<MCTSNode> {
+        
+    }
 
-           
-        }
-        let (total_edge_visits, weighted_q_sum) = {
-            node.borrow().children_and_edge_visits.iter().fold(
-                (0.0, 0.0),
-                |(sum_visits, sum_q), (child, edge_visits)| {
-                    (sum_visits + edge_visits, sum_q + (child.borrow().Q * edge_visits))
-                },
-            )
-        };
-
-        node.borrow_mut().N = 1. + total_edge_visits;
-        node.borrow_mut().Q = (1./node.borrow().N) * (node.borrow().U + weighted_q_sum);
+    pub fn expand(self: &mut tree, path: Vec<MCTSNode>) {
 
     }
 
-    fn rollout(&self, node: Rc<RefCell<MCTSNode>>) -> f64 {
-        /* Implement Rollout Capability for MCTS */
-        1.
+    pub fn rollout(self: &mut tree, MCTSNode) {
+
     }
 
+    pub fn backprop(self: &mut tree, reward: i32) {
+
+    }
+    /*
+    Each MCTS tree is a collection of MCTSNodes.
+    Each MCTSNode represents a unique game state of the given game.
+    So MCTS should AVOID creating new instances of the same MCTSNode, instead
+    it should just point to the already created node. THis is called MCGS 
+
+    pub fn search(self: &mut tree) {
+        let path = tree.select();
+        path = tree.expand(path);
+        path = tree.rollout(path[-1]);
+        self.backprop(path, reward);
+    }
 }
