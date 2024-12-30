@@ -31,7 +31,7 @@ impl TicTacToe {
 }
 
 //#[derive(Debug,std::hash::Hash,PartialEq,Eq)]
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq,std::hash::Hash)]
 pub struct TicTacToeState {
     state: Array2<i8>,
     player: i8,

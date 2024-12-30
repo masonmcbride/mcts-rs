@@ -1,70 +1,65 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 use std::rc::Rc;
-use std::cell::RefCell;
 use super::games::tictactoe::{TicTacToe, TicTacToeState};
 
 
 pub struct MCTSNode {
-    game_state: TicTacToeState,
     is_terminal: bool,
     is_expanded: bool,
     N: u32, // visit count
     Q: f64, // reguralized value
-    children_and_edge_visits: Vec<MCTSNode, u32>,
-    results = Hasmap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
+    results: HashMap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
 }
 
 impl MCTSNode {
-    pub fn new(game_state: Rc<TicTacToeState>) -> MCTSNode {
+    pub fn new(game_state: TicTacToeState) -> MCTSNode {
         let is_terminal = game_state.is_terminal;
         MCTSNode {
-            game_state,
             is_terminal,
             is_expanded: false,
-            children_and_edge_visits: Vec::new(),
-            N: 0.,
+            N: 0,
             Q: 0.,
-            U: 0.,
+            results: [(-1,0),(0,0),(1,0)].into_iter().collect()
         }
     }
 }
 
 pub struct MCTS {
-    game: Rc<TicTacToe>,
-    nodes: HashMap<Rc<TicTacToeState>,Rc<RefCell<MCTSNode>>>
+    root: Rc<MCTSNode>,
+    nodes: HashMap<Rc<TicTacToeState>,Rc<MCTSNode>>
 }
 
 impl MCTS {
 
-    pub fn new(game: MCTSNode) -> Self {
+    pub fn new(game_state: TicTacToeState) -> Self {
+        let root = MCTSNode::new(game_state);
         MCTS {
-            game: game,
-            nodes: HashMap::new(),
+            root: &root,
+            nodes: [(game_state, root)].into_iter().collect()
         }
     }
 
-    pub fn select(self: &mut tree) -> Vec<MCTSNode> {
-        
+    pub fn select(self: &tree) -> Vec<MCTSNode> {
+        let path = [Rc::clone(tree.root)];
+        while path.last().is_expanded and 
     }
 
-    pub fn expand(self: &mut tree, path: Vec<MCTSNode>) {
-
+    pub fn expand(self: &tree, path: Vec<MCTSNode>) -> Vec<MCTSNode> {
+        return Vec::new();
     }
 
-    pub fn rollout(self: &mut tree, MCTSNode) {
-
+    pub fn rollout(self: &tree, MCTSNode) -> () {
+        ()
     }
 
-    pub fn backprop(self: &mut tree, reward: i32) {
-
+    pub fn backprop(self: &tree, path: Vec<Rc<RefCell<MCTSNode>>>, reward: i32) {
+        for node in path.iter().rev() {
+            let mut node = node.borrow_mut();
+            node.N += 1;
+        }
     }
-    /*
-    Each MCTS tree is a collection of MCTSNodes.
-    Each MCTSNode represents a unique game state of the given game.
-    So MCTS should AVOID creating new instances of the same MCTSNode, instead
-    it should just point to the already created node. THis is called MCGS 
 
-    pub fn search(self: &mut tree) {
+    pub fn search(self: &tree) {
         let path = tree.select();
         path = tree.expand(path);
         path = tree.rollout(path[-1]);
