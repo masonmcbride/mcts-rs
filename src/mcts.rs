@@ -1,24 +1,28 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 use std::rc::Rc;
 use super::games::tictactoe::{TicTacToe, TicTacToeState};
 
 
 pub struct MCTSNode {
+    game_state: Rc<TicTacToeState>,
     is_terminal: bool,
     is_expanded: bool,
     N: u32, // visit count
     Q: f64, // reguralized value
+    child_to_edge_visits: HashMap<Rc<MCTSNode>,u32>,
     results: HashMap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
 }
 
 impl MCTSNode {
-    pub fn new(game_state: TicTacToeState) -> MCTSNode {
-        let is_terminal = game_state.is_terminal;
+    pub fn new(game_state: Rc<TicTacToeState>) -> MCTSNode {
+        let terminal_result = game_state.is_terminal;
         MCTSNode {
-            is_terminal,
+            game_state: game_state,
+            is_terminal: terminal_result,
             is_expanded: false,
             N: 0,
             Q: 0.,
+            child_to_edge_visits: HashMap::new(),
             results: [(-1,0),(0,0),(1,0)].into_iter().collect()
         }
     }
@@ -31,19 +35,23 @@ pub struct MCTS {
 
 impl MCTS {
 
-    pub fn new(game_state: TicTacToeState) -> Self {
-        let root = MCTSNode::new(game_state);
-        MCTS {
-            root: Rc::clone(root),
-            nodes: [(game_state, root)].into_iter().collect()
-        }
+    pub fn new(game_state: Rc<TicTacToeState>) -> Self {
+        let mut mcts = MCTS {
+            root: Rc::new(MCTSNode::new(Rc::clone(&game_state))),
+            nodes: HashMap::new()
+        };
+        mcts.root = mcts.get_node(Rc::clone(&game_state));
+        mcts
     }
 
-    pub fn get_node(&self, game_state: TicTacToeState) -> Rc<MCTSNode> {
-        if (game_state not in self.nodes) {
-            self.nodes[game_state] = MCTSNode::new(game_state)
+    pub fn get_node(&mut self, game_state: Rc<TicTacToeState>) -> Rc<MCTSNode> {
+        if let Some(node) = self.nodes.get(&game_state) {
+            Rc::clone(node)
+        } else {
+            let new_node = Rc::new(MCTSNode::new(Rc::clone(&game_state)));
+            self.nodes.insert(Rc::clone(&game_state), Rc::clone(&new_node));
+            new_node
         }
-        return self.nodes[game_state]
     }
 
     pub fn best_child(&self, node: MCTSNode) -> MCTSNode {
