@@ -4,7 +4,7 @@ use super::games::tictactoe::{TicTacToe, TicTacToeState};
 
 
 pub struct MCTSNode {
-    game_state: Rc<TicTacToeState>,
+    pub game_state: Rc<TicTacToeState>,
     is_terminal: bool,
     is_expanded: bool,
     N: u32, // visit count
@@ -54,6 +54,7 @@ impl MCTS {
         }
     }
 
+    /* 
     pub fn best_child(&self, node: MCTSNode) -> MCTSNode {
         return max([child for child in node.children],key=lambda x: self.PUCT(node,x));
     }
@@ -113,4 +114,5 @@ impl MCTS {
         let N_sa = parent.child_to_edge_visits[node];
         return node.Q + c_puct * 1 * np.sqrt(parent.N) / (1 + N_sa);
     }
+    */
 }
