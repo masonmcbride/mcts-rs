@@ -25,7 +25,7 @@ impl TicTacToe {
 
     pub fn transition(&mut self, game_state: Rc<TicTacToeState>, action: (usize, usize)) -> Rc<TicTacToeState> {
         let mut new_state = game_state.state.clone();
-        new_state[action] = game_state.player;
+        new_state[action] = game_state.player as i8;
         self.get_state(&new_state)
     }
 }
@@ -34,7 +34,7 @@ impl TicTacToe {
 #[derive(Debug,PartialEq,Eq,std::hash::Hash)]
 pub struct TicTacToeState {
     state: Array2<i8>,
-    player: i8,
+    pub player: i32,
     pub result: Option<i8>,
     pub is_terminal: bool,
     pub all_legal_actions: Array1<(usize,usize)>
@@ -42,7 +42,7 @@ pub struct TicTacToeState {
 
 impl TicTacToeState {
     pub fn new(state: Array2<i8>) -> TicTacToeState {
-        let player: i8 = if state.sum() <= 0 { 1 } else { -1 };
+        let player: i32 = if state.sum() <= 0 { 1 } else { -1 };
         let result: Option<i8> = TicTacToeState::game_result(&state);
         let is_terminal: bool = result.is_some();
         let all_legal_actions:Array1<(usize, usize)> = if !is_terminal {
