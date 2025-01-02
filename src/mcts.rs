@@ -10,7 +10,7 @@ pub struct MCTSNode {
     pub game_state: Rc<TicTacToeState>,
     is_terminal: bool,
     is_expanded: bool,
-    N: u32, // visit count
+    pub N: u32, // visit count
     Q: f64, // reguralized value
     child_to_edge_visits: HashMap<Rc<TicTacToeState>,u32>,
     results: HashMap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
@@ -138,26 +138,31 @@ impl MCTS {
             None => return path,
         };
 
+        if expanding_node_rc.borrow().is_terminal {
+            return path;
+        }
+
+        let actions = expanding_node_rc.borrow().game_state.all_legal_actions.clone();
+
         {
             let mut node_mut = expanding_node_rc.borrow_mut();
-            if node_mut.is_terminal {
-                return path;
-            }
-
-            let actions = &expanding_node_rc.borrow().game_state.all_legal_actions;
-            for action in actions {
+            for action in &actions {
                 let child_state = self.tictactoe.transition(node_mut.game_state.clone(), *action);
                 node_mut.child_to_edge_visits.entry(Rc::clone(&child_state)).or_insert(0);
-
-                let child_node_rc = self.get_node(child_state);
-                if child_node_rc.borrow().N == 0 {
-                    let reward_map = self.rollout(Rc::clone(&child_node_rc));
-                    let mut temp_path = path.clone();
-                    temp_path.push(Rc::clone(&child_node_rc));
-                    self.backprop(temp_path, reward_map);
-                }
             }
             node_mut.is_expanded = true;
+        }
+
+        for child_state in expanding_node_rc.borrow().child_to_edge_visits.keys() {
+            let child_node_rc = self.get_node(child_state.clone());
+            if child_node_rc.borrow().N == 0 {
+                let reward_map = self.rollout(Rc::clone(&child_node_rc));
+                let mut temp_path = path.clone();
+                temp_path.push(Rc::clone(&child_node_rc));
+                println!("made it to backpropping in expand");
+                self.backprop(temp_path, reward_map);
+                println!("finished this backprop");
+            }
         }
 
         let next_node_rc = self.best_child(Rc::clone(&expanding_node_rc));
@@ -196,29 +201,42 @@ impl MCTS {
 
         let mut reward = *reward_map.get(&last_player).expect("Reward map is broken");
         for node_rc in path.into_iter().rev() {
-            let mut node_mut = node_rc.borrow_mut();
-            node_mut.N = 1 + node_mut.child_to_edge_visits.values().sum::<u32>();
-            let sum_of_child_q_times_visits: f64 = node_mut
-                .child_to_edge_visits
-                .iter()
-                .map(|(child_state, &edge_visits)| {
-                    let child_node_rc = self
-                        .nodes.get(child_state).expect("No child in MCTS::nodes?");
-                    let child_node_borrow = child_node_rc.borrow();
-                    child_node_borrow.Q * edge_visits as f64
-                }).sum();
-            let n_f = node_mut.N as f64;
-            node_mut.Q = -(1./n_f)*(reward as f64 + sum_of_child_q_times_visits);
-            *node_mut.results.entry(reward).or_insert(0) += 1;
+            println!("one node up the path with node {} and result {}", node_rc.borrow().game_state, reward);
+            let sum_of_child_q_times_visits: f64 = {
+                let node_borrow = node_rc.borrow();
+                node_borrow
+                    .child_to_edge_visits
+                    .iter()
+                    .map(|(child_state, &edge_visits)| {
+                        let child_node_rc = self.nodes
+                            .get(child_state).expect("No child in MCTS::nodes?");
+                        let child_node_borrow = child_node_rc.borrow();
+                        child_node_borrow.Q * edge_visits as f64
+                    })
+                    .sum()
+            };
+
+            {
+                let mut node_mut = node_rc.borrow_mut();
+                node_mut.N = 1 + node_mut.child_to_edge_visits.values().sum::<u32>();
+                let n_f = node_mut.N as f64;
+                node_mut.Q = -(1./n_f)*(reward as f64 + sum_of_child_q_times_visits);
+                *node_mut.results.entry(reward).or_insert(0) += 1;
+            }
             reward = -1 * reward;
+
         }
     }
 
     pub fn run(&mut self) {
         let mut path = self.select();
+        println!("made it past select with path {}", path.len());
         path = self.expand(path);
+        println!("made it past expand");
         let reward = self.rollout(path.last().expect("Path is somehow empty").clone());
+        println!("made it past rollout");
         self.backprop(path, reward);
+        println!("made it past backprop");
     }
 
 }
