@@ -11,9 +11,9 @@ pub struct MCTSNode {
     is_terminal: bool,
     is_expanded: bool,
     pub N: u32, // visit count
-    Q: f64, // reguralized value
-    child_to_edge_visits: HashMap<Rc<TicTacToeState>,u32>,
-    results: HashMap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
+    pub Q: f64, // reguralized value
+    pub child_to_edge_visits: HashMap<Rc<TicTacToeState>,u32>,
+    pub results: HashMap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
 }
 
 impl MCTSNode {
@@ -209,6 +209,10 @@ impl MCTS {
         path = self.expand(path);
         let reward = self.rollout(path.last().expect("Path is somehow empty").clone());
         self.backprop(path, reward);
+    }
+
+    pub fn search(&mut self, n: u32) {
+      for _ in 0..n { self.run() }  
     }
 
 }

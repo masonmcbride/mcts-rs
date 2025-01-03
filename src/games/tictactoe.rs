@@ -33,7 +33,7 @@ impl TicTacToe {
 //#[derive(Debug,std::hash::Hash,PartialEq,Eq)]
 #[derive(Debug,PartialEq,Eq,std::hash::Hash)]
 pub struct TicTacToeState {
-    state: Array2<i8>,
+    pub state: Array2<i8>,
     pub player: i32,
     pub result: Option<Vec<(i32,i32)>>,
     pub is_terminal: bool,
