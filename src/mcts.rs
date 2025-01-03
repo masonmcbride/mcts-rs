@@ -101,72 +101,63 @@ impl MCTS {
                 puct_a.partial_cmp(&puct_b).expect("Comparison failed due to NaN")
             }).expect("Called best child on no children");
         
-        Rc::clone(self.nodes.get(&best_child_state).expect("Child node not in map?"))
+        self.get_node(best_child_state)
     }
 
     pub fn select(&mut self) -> Vec<Rc<RefCell<MCTSNode>>> {
-        let mut path = vec![Rc::clone(&self.root)];
-        
+        let mut path = vec![self.root.clone()];
+
         loop {
-            let last_node_rc = match path.last() {
-                Some(node) => Rc::clone(node),
-                None => break,
-            };
+            let last_node_rc = path.last().unwrap().clone();
             let last_node = last_node_rc.borrow();
             if !last_node.is_expanded || last_node.is_terminal {
                 break;
             }
-
-            let next_node_rc = self.best_child(Rc::clone(&last_node_rc));
             drop(last_node);
 
-            {
-                let mut last_node_mut = last_node_rc.borrow_mut();
-                let child_state = next_node_rc.borrow().game_state.clone();
-                *last_node_mut.child_to_edge_visits.get_mut(&child_state)
-                .expect("No edge visit entry?") += 1;
-            }
-
+            let next_node_rc = self.best_child(last_node_rc.clone());
+            let next_state = next_node_rc.borrow().game_state.clone();
+            *last_node_rc.borrow_mut().child_to_edge_visits.get_mut(&next_state)
+                          .expect("No edge visit entry?") += 1;
             path.push(next_node_rc);
         }
         path
     }
 
     pub fn expand(&mut self, mut path: Vec<Rc<RefCell<MCTSNode>>>) -> Vec<Rc<RefCell<MCTSNode>>> {
-        let expanding_node_rc= match path.last() {
-            Some(node) => Rc::clone(node),
-            None => return path,
-        };
-
+        let expanding_node_rc= path.last().unwrap().clone();
         if expanding_node_rc.borrow().is_terminal {
             return path;
         }
-
         let actions = expanding_node_rc.borrow().game_state.all_legal_actions.clone();
+        let mut child_nodes_to_backprop = Vec::new();
 
         {
+            // Mutable borrow block: modify child_to_edge_visits and mark as expanded
             let mut node_mut = expanding_node_rc.borrow_mut();
             for action in &actions {
                 let child_state = self.tictactoe.transition(node_mut.game_state.clone(), *action);
-                node_mut.child_to_edge_visits.entry(Rc::clone(&child_state)).or_insert(0);
+                node_mut.child_to_edge_visits.insert(child_state.clone(), 1);
+                let child_node_rc = self.get_node(child_state.clone());
+
+                // Collect child nodes that need backprop
+                if child_node_rc.borrow().N == 0 {
+                    child_nodes_to_backprop.push(child_node_rc.clone());
+                }
             }
-            node_mut.is_expanded = true;
+            node_mut.is_expanded = true; // Mark node as expanded
+        }
+        // Mutable borrow ends here
+
+        // Step 2: Perform backpropagation without any active mutable borrows
+        for child_node_rc in child_nodes_to_backprop {
+            let reward_map = self.rollout(child_node_rc.clone());
+            let mut temp_path = path.clone();
+            temp_path.push(child_node_rc.clone());
+            self.backprop(temp_path, reward_map);
         }
 
-        for child_state in expanding_node_rc.borrow().child_to_edge_visits.keys() {
-            let child_node_rc = self.get_node(child_state.clone());
-            if child_node_rc.borrow().N == 0 {
-                let reward_map = self.rollout(Rc::clone(&child_node_rc));
-                let mut temp_path = path.clone();
-                temp_path.push(Rc::clone(&child_node_rc));
-                println!("made it to backpropping in expand");
-                self.backprop(temp_path, reward_map);
-                println!("finished this backprop");
-            }
-        }
-
-        let next_node_rc = self.best_child(Rc::clone(&expanding_node_rc));
-        path.push(next_node_rc);
+        path.push(self.best_child(expanding_node_rc));
         path
     }
 
@@ -174,69 +165,50 @@ impl MCTS {
         let mut rng = thread_rng();
 
         let mut cur_state = node_rc.borrow().game_state.clone();
-
         while !cur_state.is_terminal {
             let actions_vec = cur_state.all_legal_actions.clone().into_raw_vec();
-            if actions_vec.is_empty() {
-                break;
-            }
-
             let action = *actions_vec.choose(&mut rng).unwrap();
             cur_state = self.tictactoe.transition(cur_state, action);
         }
 
-        let final_result = cur_state.result.unwrap_or(0);
-        let mut reward_map: HashMap<i32, i32> = [(-1,1),(0,0),(1,0)].into_iter().collect();
-        reward_map.insert(final_result as i32, 1);
+        let reward_map = cur_state.result.clone().expect("No result for terminal state?").into_iter().collect();
         reward_map
     }
 
-    pub fn backprop(&self, path: Vec<Rc<RefCell<MCTSNode>>>, reward_map: HashMap<i32,i32>) {
+    pub fn backprop(&mut self, path: Vec<Rc<RefCell<MCTSNode>>>, reward_map: HashMap<i32,i32>) {
         if path.is_empty() {
             return;
         }
 
-        let last_node_rc = path.last().unwrap();
-        let last_player = last_node_rc.borrow().game_state.player;
-
-        let mut reward = *reward_map.get(&last_player).expect("Reward map is broken");
+        let mut reward = *reward_map.get(&path.last().expect("backpropping on empty path?")
+                                                   .borrow().game_state.player)
+                                         .expect("Reward map is broken");
         for node_rc in path.into_iter().rev() {
-            println!("one node up the path with node {} and result {}", node_rc.borrow().game_state, reward);
             let sum_of_child_q_times_visits: f64 = {
                 let node_borrow = node_rc.borrow();
                 node_borrow
                     .child_to_edge_visits
                     .iter()
                     .map(|(child_state, &edge_visits)| {
-                        let child_node_rc = self.nodes
-                            .get(child_state).expect("No child in MCTS::nodes?");
+                        let child_node_rc = self.get_node(child_state.clone());
                         let child_node_borrow = child_node_rc.borrow();
                         child_node_borrow.Q * edge_visits as f64
                     })
                     .sum()
             };
-
-            {
-                let mut node_mut = node_rc.borrow_mut();
-                node_mut.N = 1 + node_mut.child_to_edge_visits.values().sum::<u32>();
-                let n_f = node_mut.N as f64;
-                node_mut.Q = -(1./n_f)*(reward as f64 + sum_of_child_q_times_visits);
-                *node_mut.results.entry(reward).or_insert(0) += 1;
-            }
+            let mut node_mut = node_rc.borrow_mut();
+            node_mut.N = 1 + node_mut.child_to_edge_visits.values().sum::<u32>();
+            node_mut.Q = -(1./node_mut.N as f64)*(reward as f64 + sum_of_child_q_times_visits);
+            node_mut.results.entry(reward).and_modify(|n| {*n += 1});
             reward = -1 * reward;
-
         }
     }
 
     pub fn run(&mut self) {
         let mut path = self.select();
-        println!("made it past select with path {}", path.len());
         path = self.expand(path);
-        println!("made it past expand");
         let reward = self.rollout(path.last().expect("Path is somehow empty").clone());
-        println!("made it past rollout");
         self.backprop(path, reward);
-        println!("made it past backprop");
     }
 
 }

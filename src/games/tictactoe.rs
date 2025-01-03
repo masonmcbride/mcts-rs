@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use ndarray::prelude::*;
+use ndarray::{prelude::*, IntoNdProducer};
 
 pub struct TicTacToe {
     pub game_states: HashMap<Array2<i8>, Rc<TicTacToeState>>
@@ -35,17 +35,17 @@ impl TicTacToe {
 pub struct TicTacToeState {
     state: Array2<i8>,
     pub player: i32,
-    pub result: Option<i8>,
+    pub result: Option<Vec<(i32,i32)>>,
     pub is_terminal: bool,
     pub all_legal_actions: Array1<(usize,usize)>
 }
 
 impl TicTacToeState {
     pub fn new(state: Array2<i8>) -> TicTacToeState {
-        let player: i32 = if state.sum() <= 0 { 1 } else { -1 };
-        let result: Option<i8> = TicTacToeState::game_result(&state);
-        let is_terminal: bool = result.is_some();
-        let all_legal_actions:Array1<(usize, usize)> = if !is_terminal {
+        let player = if state.sum() <= 0 { 1 } else { -1 };
+        let result = TicTacToeState::game_result(&state);
+        let is_terminal = result.is_some();
+        let all_legal_actions= if !is_terminal {
             state.indexed_iter()
                 .filter(|&((_,_),&value)| value == 0)
                 .map(|((i,j),_)| (i,j))
@@ -62,7 +62,7 @@ impl TicTacToeState {
         }
 }
     #[inline]
-    fn game_result(state: &Array2<i8>) -> Option<i8> {
+    fn game_result(state: &Array2<i8>) -> Option<Vec<(i32,i32)>> {
         let three_in_a_row = 3;
         let rowsum = state.sum_axis(Axis(0));
         let colsum = state.sum_axis(Axis(1));
@@ -75,7 +75,7 @@ impl TicTacToeState {
         || diag_sum_tr == three_in_a_row;
 
         if player_one_wins {
-            return Some(1);
+            return Some([(1,1),(-1,-1)].to_vec());
         }
 
         let player_two_wins = rowsum.iter().any(|&x| x == -three_in_a_row)
@@ -84,11 +84,11 @@ impl TicTacToeState {
         || diag_sum_tr == -three_in_a_row;
 
         if player_two_wins {
-            return Some(-1);
+            return Some([(1,-1),(-1,1)].to_vec());
         }
 
         if state.iter().all(|&x| x != 0) {
-            return Some(0)
+            return Some([(1,0),(-1,0)].to_vec());
         }
 
         None
