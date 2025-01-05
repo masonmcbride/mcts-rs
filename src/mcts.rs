@@ -59,49 +59,22 @@ impl MCTS {
 
     pub fn new(game_state: Rc<TicTacToeState>, game: TicTacToe) -> Self {
         let mut mcts = MCTS {
-            root: Rc::new(RefCell::new(MCTSNode::new(Rc::clone(&game_state)))),
+            root: Rc::new(RefCell::new(MCTSNode::new(game_state.clone()))),
             nodes: HashMap::new(),
             tictactoe: game
         };
-        mcts.root = mcts.get_node(Rc::clone(&game_state));
+        mcts.root = mcts.get_node(game_state);
         mcts
     }
 
     pub fn get_node(&mut self, game_state: Rc<TicTacToeState>) -> Rc<RefCell<MCTSNode>> {
         if let Some(node) = self.nodes.get(&game_state) {
-            Rc::clone(node)
+            node.clone()
         } else {
-            let new_node = Rc::new(RefCell::new(MCTSNode::new(Rc::clone(&game_state))));
-            self.nodes.insert(Rc::clone(&game_state), Rc::clone(&new_node));
+            let new_node = Rc::new(RefCell::new(MCTSNode::new(game_state.clone())));
+            self.nodes.insert(game_state, new_node.clone());
             new_node
         }
-    }
-
-    pub fn PUCT(&mut self, parent: Rc<RefCell<MCTSNode>>, node: Rc<RefCell<MCTSNode>>) -> f64 { 
-        let parent_borrow = parent.borrow();
-        let node_borrow = node.borrow();
-        let c_puct = 1.;
-        let N_sa = parent_borrow.child_to_edge_visits.get(&node_borrow.game_state).expect("Calling PUCT on a Node that doesn't exist?");
-        return node_borrow.Q + c_puct * 1. * f64::sqrt(parent_borrow.N as f64) / (1 + N_sa) as f64;
-    }
-
-    pub fn best_child(&mut self, node: Rc<RefCell<MCTSNode>>) -> Rc<RefCell<MCTSNode>> {
-        let children_states: Vec<Rc<TicTacToeState>> = {
-            let node_borrow = node.borrow();
-            node_borrow.child_to_edge_visits.keys().cloned().collect()
-        };
-
-        let best_child_state = children_states
-            .into_iter()
-            .max_by(|state_a, state_b| {
-                let child_a = self.get_node(state_a.clone());
-                let child_b = self.get_node(state_b.clone());
-                let puct_a: f64 = self.PUCT(node.clone(),child_a);
-                let puct_b: f64 = self.PUCT(node.clone(), child_b);
-                puct_a.partial_cmp(&puct_b).expect("Comparison failed due to NaN")
-            }).expect("Called best child on no children");
-        
-        self.get_node(best_child_state)
     }
 
     pub fn select(&mut self) -> Vec<Rc<RefCell<MCTSNode>>> {
@@ -138,11 +111,11 @@ impl MCTS {
             for action in &actions {
                 let child_state = self.tictactoe.transition(node_mut.game_state.clone(), *action);
                 node_mut.child_to_edge_visits.insert(child_state.clone(), 1);
-                let child_node_rc = self.get_node(child_state.clone());
+                let child_node_rc = self.get_node(child_state);
 
                 // Collect child nodes that need backprop
                 if child_node_rc.borrow().N == 0 {
-                    child_nodes_to_backprop.push(child_node_rc.clone());
+                    child_nodes_to_backprop.push(child_node_rc);
                 }
             }
             node_mut.is_expanded = true; // Mark node as expanded
@@ -153,7 +126,7 @@ impl MCTS {
         for child_node_rc in child_nodes_to_backprop {
             let reward_map = self.rollout(child_node_rc.clone());
             let mut temp_path = path.clone();
-            temp_path.push(child_node_rc.clone());
+            temp_path.push(child_node_rc);
             self.backprop(temp_path, reward_map);
         }
 
@@ -202,6 +175,33 @@ impl MCTS {
             node_mut.results.entry(reward).and_modify(|n| {*n += 1});
             reward = -1 * reward;
         }
+    }
+
+    pub fn PUCT(&mut self, parent: Rc<RefCell<MCTSNode>>, node: Rc<RefCell<MCTSNode>>) -> f64 { 
+        let parent_borrow = parent.borrow();
+        let node_borrow = node.borrow();
+        let c_puct = 1.;
+        let N_sa = parent_borrow.child_to_edge_visits.get(&node_borrow.game_state).expect("Calling PUCT on a Node that doesn't exist?");
+        return node_borrow.Q + c_puct * 1. * f64::sqrt(parent_borrow.N as f64) / (1 + N_sa) as f64;
+    }
+
+    pub fn best_child(&mut self, node: Rc<RefCell<MCTSNode>>) -> Rc<RefCell<MCTSNode>> {
+        let children_states: Vec<Rc<TicTacToeState>> = {
+            let node_borrow = node.borrow();
+            node_borrow.child_to_edge_visits.keys().cloned().collect()
+        };
+
+        let best_child_state = children_states
+            .into_iter()
+            .max_by(|state_a, state_b| {
+                let child_a = self.get_node(state_a.clone());
+                let child_b = self.get_node(state_b.clone());
+                let puct_a: f64 = self.PUCT(node.clone(),child_a);
+                let puct_b: f64 = self.PUCT(node.clone(), child_b);
+                puct_a.partial_cmp(&puct_b).expect("Comparison failed due to NaN")
+            }).expect("Called best child on no children");
+        
+        self.get_node(best_child_state)
     }
 
     pub fn run(&mut self) {
