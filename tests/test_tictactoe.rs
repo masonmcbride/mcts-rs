@@ -6,9 +6,11 @@ use mcts_rs::game::Game;
 #[test]
 fn test_tictactoe_finds_all_states() {
     fn explore_states(game: &mut TicTacToe, state: Rc<TicTacToeState>) {
-        for action in state.all_legal_actions.iter() {
-            let next_state = game.transition(Rc::clone(&state), *action);
-            explore_states(game, next_state);
+        if !state.is_terminal {
+            for action in state.all_legal_actions.clone().unwrap().iter() {
+                let next_state = game.transition(Rc::clone(&state), *action);
+                explore_states(game, next_state);
+            }
         }
     }
     let mut tictactoe = TicTacToe::new();

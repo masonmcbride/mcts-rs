@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use ndarray::{Array1,Array2};
+use ndarray::Array2;
 use std::hash::Hash;
 
 pub trait GameState: PartialEq + Eq + Hash {
@@ -7,7 +7,7 @@ pub trait GameState: PartialEq + Eq + Hash {
     fn is_terminal(&self) -> &bool;
     fn player(&self) -> &i32;
     fn result(&self) -> &Option<Vec<(i32,i32)>>;
-    fn all_legal_actions(&self) -> &Array1<(usize, usize)>;
+    fn all_legal_actions(&self) -> &Option<Vec<(usize, usize)>>;
 }
 
 pub trait Game {

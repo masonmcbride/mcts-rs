@@ -83,7 +83,7 @@ impl<G: Game> MCTS<G> {
         if expanding_node_rc.borrow().is_terminal {
             return path;
         }
-        let actions = expanding_node_rc.borrow().game_state.all_legal_actions().clone();
+        let actions = expanding_node_rc.borrow().game_state.all_legal_actions().clone().unwrap();
         let mut child_nodes_to_backprop = Vec::new();
 
         {
@@ -117,7 +117,7 @@ impl<G: Game> MCTS<G> {
 
         let mut cur_state = node_rc.borrow().game_state.clone();
         while !cur_state.is_terminal() {
-            let actions_vec = cur_state.all_legal_actions().clone().into_raw_vec();
+            let actions_vec = cur_state.all_legal_actions().clone().unwrap();
             let action = *actions_vec.choose(&mut rng).unwrap();
             cur_state = self.game.transition(cur_state, action);
         }

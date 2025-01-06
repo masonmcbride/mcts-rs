@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::{Display,Formatter,Result};
 use std::rc::Rc;
-use ndarray::{Array1, Array2, Axis, s};
+use ndarray::{Array2,Axis,s};
 use crate::game::{Game,GameState};
 
 pub struct TicTacToe {
@@ -40,7 +40,7 @@ pub struct TicTacToeState {
     pub player: i32,
     pub result: Option<Vec<(i32,i32)>>,
     pub is_terminal: bool,
-    pub all_legal_actions: Array1<(usize,usize)>
+    pub all_legal_actions: Option<Vec<(usize,usize)>>
 }
 
 impl TicTacToeState {
@@ -48,14 +48,11 @@ impl TicTacToeState {
         let player = if state.sum() <= 0 { 1 } else { -1 };
         let result = TicTacToeState::game_result(&state);
         let is_terminal = result.is_some();
-        let all_legal_actions= if !is_terminal {
-            state.indexed_iter()
+        let all_legal_actions = Some(
+                state.indexed_iter()
                 .filter(|&((_,_),&value)| value == 0)
                 .map(|((i,j),_)| (i,j))
-                .collect::<Array1<(usize,usize)>>()
-        } else {
-            Array1::from_shape_vec(0, Vec::new()).unwrap() // like wtf is this !! 
-        };
+                .collect());
         TicTacToeState {
             state,
             player,
@@ -121,7 +118,7 @@ impl GameState for TicTacToeState {
         &self.result
     }
 
-    fn all_legal_actions(&self) -> &Array1<(usize, usize)> {
+    fn all_legal_actions(&self) -> &Option<Vec<(usize, usize)>> {
         &self.all_legal_actions
     }
 }
