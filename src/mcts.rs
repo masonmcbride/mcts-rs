@@ -1,24 +1,23 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::hash::{Hash, Hasher};
-use rand::seq::SliceRandom;
+use rand::prelude::SliceRandom;
 use rand::thread_rng;
-use super::games::tictactoe::{TicTacToe,TicTacToeState};
+use crate::game::{Game,GameState};
 
-pub struct MCTSNode {
-    pub game_state: Rc<TicTacToeState>,
+pub struct MCTSNode<S: GameState> {
+    pub game_state: Rc<S>,
     is_terminal: bool,
     is_expanded: bool,
     pub N: u32, // visit count
     pub Q: f64, // reguralized value
-    pub child_to_edge_visits: HashMap<Rc<TicTacToeState>,u32>,
+    pub child_to_edge_visits: HashMap<Rc<S>,u32>,
     pub results: HashMap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
 }
 
-impl MCTSNode {
-    pub fn new(game_state: Rc<TicTacToeState>) -> MCTSNode {
-        let terminal_result = game_state.is_terminal;
+impl<S: GameState> MCTSNode<S> {
+    pub fn new(game_state: Rc<S>) -> MCTSNode<S> {
+        let terminal_result = *game_state.is_terminal();
         MCTSNode {
             game_state: game_state,
             is_terminal: terminal_result,
@@ -31,43 +30,25 @@ impl MCTSNode {
     }
 }
 
-// TicTacToeState already is hashable, and the requirement for equality in MCTSNode is 
-// if the TicTacToeStates they represent are the same. So just pass to that check. 
-// TODO: maybe there is an even better way, but this is nice. 
-impl PartialEq for MCTSNode {
-    fn eq(&self, other: &Self) -> bool {
-        self.game_state == other.game_state
-    }
+pub struct MCTS<G: Game> {
+    pub root: Rc<RefCell<MCTSNode<G::State>>>,
+    pub nodes: HashMap<Rc<G::State>,Rc<RefCell<MCTSNode<G::State>>>>,
+    pub game: G
 }
 
-impl Eq for MCTSNode {} 
+impl<G: Game> MCTS<G> {
 
-impl Hash for MCTSNode {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.game_state.hash(state)
-    }    
-}
-
-
-pub struct MCTS {
-    pub root: Rc<RefCell<MCTSNode>>,
-    pub nodes: HashMap<Rc<TicTacToeState>,Rc<RefCell<MCTSNode>>>,
-    pub tictactoe: TicTacToe
-}
-
-impl MCTS {
-
-    pub fn new(game_state: Rc<TicTacToeState>, game: TicTacToe) -> Self {
+    pub fn new(game: G, root_state: Rc<G::State>) -> Self {
         let mut mcts = MCTS {
-            root: Rc::new(RefCell::new(MCTSNode::new(game_state.clone()))),
+            root: Rc::new(RefCell::new(MCTSNode::new(root_state.clone()))),
             nodes: HashMap::new(),
-            tictactoe: game
+            game: game
         };
-        mcts.root = mcts.get_node(game_state);
+        mcts.root = mcts.get_node(root_state);
         mcts
     }
 
-    pub fn get_node(&mut self, game_state: Rc<TicTacToeState>) -> Rc<RefCell<MCTSNode>> {
+    pub fn get_node(&mut self, game_state: Rc<G::State>) -> Rc<RefCell<MCTSNode<G::State>>> {
         if let Some(node) = self.nodes.get(&game_state) {
             node.clone()
         } else {
@@ -77,7 +58,7 @@ impl MCTS {
         }
     }
 
-    pub fn select(&mut self) -> Vec<Rc<RefCell<MCTSNode>>> {
+    pub fn select(&mut self) -> Vec<Rc<RefCell<MCTSNode<G::State>>>> {
         let mut path = vec![self.root.clone()];
 
         loop {
@@ -97,19 +78,19 @@ impl MCTS {
         path
     }
 
-    pub fn expand(&mut self, mut path: Vec<Rc<RefCell<MCTSNode>>>) -> Vec<Rc<RefCell<MCTSNode>>> {
+    pub fn expand(&mut self, mut path: Vec<Rc<RefCell<MCTSNode<G::State>>>>) -> Vec<Rc<RefCell<MCTSNode<G::State>>>> {
         let expanding_node_rc= path.last().unwrap().clone();
         if expanding_node_rc.borrow().is_terminal {
             return path;
         }
-        let actions = expanding_node_rc.borrow().game_state.all_legal_actions.clone();
+        let actions = expanding_node_rc.borrow().game_state.all_legal_actions().clone();
         let mut child_nodes_to_backprop = Vec::new();
 
         {
             // Mutable borrow block: modify child_to_edge_visits and mark as expanded
             let mut node_mut = expanding_node_rc.borrow_mut();
             for action in &actions {
-                let child_state = self.tictactoe.transition(node_mut.game_state.clone(), *action);
+                let child_state = self.game.transition(node_mut.game_state.clone(), *action);
                 node_mut.child_to_edge_visits.insert(child_state.clone(), 1);
                 let child_node_rc = self.get_node(child_state);
 
@@ -134,27 +115,27 @@ impl MCTS {
         path
     }
 
-    pub fn rollout(&mut self, node_rc: Rc<RefCell<MCTSNode>>) -> HashMap<i32, i32> {
+    pub fn rollout(&mut self, node_rc: Rc<RefCell<MCTSNode<G::State>>>) -> HashMap<i32, i32> {
         let mut rng = thread_rng();
 
         let mut cur_state = node_rc.borrow().game_state.clone();
-        while !cur_state.is_terminal {
-            let actions_vec = cur_state.all_legal_actions.clone().into_raw_vec();
+        while !cur_state.is_terminal() {
+            let actions_vec = cur_state.all_legal_actions().clone().into_raw_vec();
             let action = *actions_vec.choose(&mut rng).unwrap();
-            cur_state = self.tictactoe.transition(cur_state, action);
+            cur_state = self.game.transition(cur_state, action);
         }
 
-        let reward_map = cur_state.result.clone().expect("No result for terminal state?").into_iter().collect();
+        let reward_map = cur_state.result().clone().expect("No result for terminal state?").into_iter().collect();
         reward_map
     }
 
-    pub fn backprop(&mut self, path: Vec<Rc<RefCell<MCTSNode>>>, reward_map: HashMap<i32,i32>) {
+    pub fn backprop(&mut self, path: Vec<Rc<RefCell<MCTSNode<G::State>>>>, reward_map: HashMap<i32,i32>) {
         if path.is_empty() {
             return;
         }
 
         let mut reward = *reward_map.get(&path.last().expect("backpropping on empty path?")
-                                                   .borrow().game_state.player)
+                                                   .borrow().game_state.player())
                                          .expect("Reward map is broken");
         for node_rc in path.into_iter().rev() {
             let sum_of_child_q_times_visits: f64 = {
@@ -177,7 +158,7 @@ impl MCTS {
         }
     }
 
-    pub fn PUCT(&mut self, parent: Rc<RefCell<MCTSNode>>, node: Rc<RefCell<MCTSNode>>) -> f64 { 
+    pub fn PUCT(&mut self, parent: Rc<RefCell<MCTSNode<G::State>>>, node: Rc<RefCell<MCTSNode<G::State>>>) -> f64 { 
         let parent_borrow = parent.borrow();
         let node_borrow = node.borrow();
         let c_puct = 1.;
@@ -185,8 +166,8 @@ impl MCTS {
         return node_borrow.Q + c_puct * 1. * f64::sqrt(parent_borrow.N as f64) / (1 + N_sa) as f64;
     }
 
-    pub fn best_child(&mut self, node: Rc<RefCell<MCTSNode>>) -> Rc<RefCell<MCTSNode>> {
-        let children_states: Vec<Rc<TicTacToeState>> = {
+    pub fn best_child(&mut self, node: Rc<RefCell<MCTSNode<G::State>>>) -> Rc<RefCell<MCTSNode<G::State>>> {
+        let children_states: Vec<Rc<G::State>> = {
             let node_borrow = node.borrow();
             node_borrow.child_to_edge_visits.keys().cloned().collect()
         };

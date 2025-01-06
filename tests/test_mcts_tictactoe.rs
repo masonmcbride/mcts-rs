@@ -1,19 +1,18 @@
 use ndarray::prelude::*;
+use mcts_rs::game::Game;
 use mcts_rs::games::tictactoe::{TicTacToeState, TicTacToe};
 use mcts_rs::mcts::MCTS;
 
 #[test]
 fn test_one_run_expands_and_selects_one() {
-
     let mut tictactoe = TicTacToe::new();
     let empty_board = Array2::zeros((3, 3)); // Initial empty board key
     let new_game = tictactoe.get_state(&empty_board);
-    let mut mcts = MCTS::new(new_game.clone(), tictactoe);
+    let mut mcts = MCTS::new(tictactoe, new_game);
     mcts.run();
     assert_eq!(mcts.root.borrow().N, 10, "One run visits the root and all it's children. 1 + 9 = 10 = root.N");
     mcts.run();
     assert_eq!(mcts.root.borrow().N, 11, "one more run has only one path up to root so + 1 more");
-
 }
 
 #[test]
@@ -25,7 +24,7 @@ fn test_mcts_results_contain_no_losses() {
         [-1,  0,  0],
     ]);
     let almost_won = tictactoe.get_state(&one_move_to_win);
-    let mut mcts = MCTS::new(almost_won, tictactoe);
+    let mut mcts = MCTS::new(tictactoe,almost_won);
     mcts.search(50);
 
     let root = mcts.root.borrow();
@@ -48,7 +47,7 @@ fn test_mcts_blocks_win() {
         [ 1, -1,  0],
         [ 0,  0,  1],
     ]);
-    let mut mcts = MCTS::new(o_can_win, tictactoe);
+    let mut mcts = MCTS::new(tictactoe,o_can_win);
     mcts.search(50);
 
     // Step 1: Collect all child states while we hold an immutable borrow of `root`.
@@ -96,7 +95,7 @@ fn test_mcts_picks_winning_move_when_almost_won() {
     let almost_won = tictactoe.get_state(&one_move_to_win);
 
     // Build MCTS
-    let mut mcts = MCTS::new(almost_won, tictactoe);
+    let mut mcts = MCTS::new(tictactoe,almost_won);
     mcts.search(10);
 
     // Step 1: Collect all child states while holding an immutable borrow of `root`.

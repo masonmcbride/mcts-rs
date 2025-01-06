@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{Display, Formatter, Result};
 use std::rc::Rc;
-use ndarray::{prelude::*, IntoNdProducer};
+use ndarray::{Array1, Array2, Axis, s};
+use crate::game::{Game,GameState};
 
 pub struct TicTacToe {
     pub game_states: HashMap<Array2<i8>, Rc<TicTacToeState>>
@@ -11,26 +12,28 @@ impl TicTacToe {
     pub fn new() -> Self {
         TicTacToe { game_states: HashMap::new() }
     }
+}
 
-    pub fn get_state(&mut self, board: &Array2<i8>) -> Rc<TicTacToeState> {
+impl Game for TicTacToe {
+    type State = TicTacToeState;
+
+    fn get_state(&mut self, board: &Array2<i8>) -> Rc<TicTacToeState> {
         if let Some(state) = self.game_states.get(board) {
-            Rc::clone(state)
+            state.clone()
         } else {
-            let new_state = TicTacToeState::new(board.clone());
-            let state_ref = Rc::new(new_state);
-            self.game_states.insert(board.clone(), Rc::clone(&state_ref));
-            state_ref
+            let state_rc = Rc::new(TicTacToeState::new(board.clone()));
+            self.game_states.insert(board.clone(), state_rc.clone());
+            state_rc
         }
     }
 
-    pub fn transition(&mut self, game_state: Rc<TicTacToeState>, action: (usize, usize)) -> Rc<TicTacToeState> {
+    fn transition(&mut self, game_state: Rc<TicTacToeState>, action: (usize, usize)) -> Rc<TicTacToeState> {
         let mut new_state = game_state.state.clone();
         new_state[action] = game_state.player as i8;
         self.get_state(&new_state)
     }
 }
 
-//#[derive(Debug,std::hash::Hash,PartialEq,Eq)]
 #[derive(Debug,PartialEq,Eq,std::hash::Hash)]
 pub struct TicTacToeState {
     pub state: Array2<i8>,
@@ -60,7 +63,8 @@ impl TicTacToeState {
             is_terminal,
             all_legal_actions
         }
-}
+    }
+    
     #[inline]
     fn game_result(state: &Array2<i8>) -> Option<Vec<(i32,i32)>> {
         let three_in_a_row = 3;
@@ -97,31 +101,29 @@ impl TicTacToeState {
 
 }
 
-impl fmt::Display for TicTacToeState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for TicTacToeState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{}", self.state)
     }
 }
 
-/* 
 impl GameState for TicTacToeState {
     fn state(&self) -> &Array2<i8> {
         &self.state
     }
-    fn is_terminal(&self) -> bool {
-        self.is_terminal
+    fn is_terminal(&self) -> &bool {
+        &self.is_terminal
     }
 
-    fn player(&self) -> i8 {
-        self.player
+    fn player(&self) -> &i32 {
+        &self.player
     }
 
-    fn result(&self) -> Option<i8> {
-        self.result
+    fn result(&self) -> &Option<Vec<(i32,i32)>> {
+        &self.result
     }
 
     fn all_legal_actions(&self) -> &Array1<(usize, usize)> {
         &self.all_legal_actions
     }
 }
-*/

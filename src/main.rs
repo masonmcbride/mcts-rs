@@ -1,7 +1,8 @@
-use mcts_rs::mcts::MCTS;
-use mcts_rs::games::tictactoe::TicTacToe;
-use ndarray::Array2;
 use std::rc::Rc;
+use ndarray::Array2;
+use mcts_rs::mcts::MCTS;
+use mcts_rs::game::Game;
+use mcts_rs::games::tictactoe::TicTacToe;
 
 fn main() {
 
@@ -15,7 +16,7 @@ fn main() {
     let other_state = tic_tac_toe.get_state(&other_board);
 
     // 3. Create an MCTS using that state.
-    let mut mcts = MCTS::new(state.clone(), tic_tac_toe);
+    let mut mcts = MCTS::new(tic_tac_toe, state.clone());
 
     // 4. Call get_node on the same state.
     let node = mcts.get_node(state.clone());

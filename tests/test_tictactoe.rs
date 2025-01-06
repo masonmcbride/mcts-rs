@@ -1,7 +1,7 @@
 use std::rc::Rc;
-extern crate mcts_rs;
 use ndarray::prelude::*;
 use mcts_rs::games::tictactoe::{TicTacToeState, TicTacToe};
+use mcts_rs::game::Game;
 
 #[test]
 fn test_tictactoe_finds_all_states() {
