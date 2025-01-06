@@ -1,6 +1,6 @@
 use ndarray::prelude::*;
 use mcts_rs::game::Game;
-use mcts_rs::games::tictactoe::{TicTacToeState, TicTacToe};
+use mcts_rs::games::tictactoe::TicTacToe;
 use mcts_rs::mcts::MCTS;
 
 #[test]

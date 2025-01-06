@@ -87,7 +87,6 @@ impl<G: Game> MCTS<G> {
         let mut child_nodes_to_backprop = Vec::new();
 
         {
-            // Mutable borrow block: modify child_to_edge_visits and mark as expanded
             let mut node_mut = expanding_node_rc.borrow_mut();
             for action in &actions {
                 let child_state = self.game.transition(node_mut.game_state.clone(), *action);
@@ -99,11 +98,9 @@ impl<G: Game> MCTS<G> {
                     child_nodes_to_backprop.push(child_node_rc);
                 }
             }
-            node_mut.is_expanded = true; // Mark node as expanded
+            node_mut.is_expanded = true;
         }
-        // Mutable borrow ends here
 
-        // Step 2: Perform backpropagation without any active mutable borrows
         for child_node_rc in child_nodes_to_backprop {
             let reward_map = self.rollout(child_node_rc.clone());
             let mut temp_path = path.clone();
@@ -195,5 +192,4 @@ impl<G: Game> MCTS<G> {
     pub fn search(&mut self, n: u32) {
       for _ in 0..n { self.run() }  
     }
-
 }

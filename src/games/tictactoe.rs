@@ -97,8 +97,6 @@ impl TicTacToeState {
 
         None
     }
-
-
 }
 
 impl Display for TicTacToeState {
