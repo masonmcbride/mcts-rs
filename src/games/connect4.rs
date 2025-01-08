@@ -2,15 +2,16 @@ use std::collections::HashMap;
 use std::fmt::{Display,Formatter,Result};
 use std::rc::Rc;
 use ndarray::{Array2,Axis,s};
+use wyhash2::WyHash;
 use crate::game::{Game,GameState};
 
 pub struct Connect4 {
-    pub game_states: HashMap<Array2<i8>, Rc<Connect4State>>
+    pub game_states: HashMap<Array2<i8>, Rc<Connect4State>,WyHash>
 }
 
 impl Connect4 {
     pub fn new() -> Self {
-        Connect4 { game_states: HashMap::new() }
+        Connect4 { game_states: HashMap::with_hasher(WyHash::with_seed(0)) }
     }
 }
 

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
+use wyhash2::WyHash;
 use crate::game::{Game,GameState};
 
 pub struct MCTSNode<S: GameState> {
@@ -11,7 +12,7 @@ pub struct MCTSNode<S: GameState> {
     is_expanded: bool,
     pub N: u32, // visit count
     pub Q: f64, // reguralized value
-    pub child_to_edge_visits: HashMap<Rc<S>,u32>,
+    pub child_to_edge_visits: HashMap<Rc<S>,u32,WyHash>,
     pub results: HashMap<i32, u32> // {-1: num_losses, 0: num_draws, 1: num_wins}
 }
 
@@ -24,7 +25,7 @@ impl<S: GameState> MCTSNode<S> {
             is_expanded: false,
             N: 0,
             Q: 0.,
-            child_to_edge_visits: HashMap::new(),
+            child_to_edge_visits: HashMap::with_hasher(WyHash::with_seed(0)),
             results: [(-1,0),(0,0),(1,0)].into_iter().collect()
         }
     }
@@ -32,7 +33,7 @@ impl<S: GameState> MCTSNode<S> {
 
 pub struct MCTS<G: Game> {
     pub root: Rc<RefCell<MCTSNode<G::State>>>,
-    pub nodes: HashMap<Rc<G::State>,Rc<RefCell<MCTSNode<G::State>>>>,
+    pub nodes: HashMap<Rc<G::State>,Rc<RefCell<MCTSNode<G::State>>>,WyHash>,
     pub game: G
 }
 
@@ -41,7 +42,7 @@ impl<G: Game> MCTS<G> {
     pub fn new(game: G, root_state: Rc<G::State>) -> Self {
         let mut mcts = MCTS {
             root: Rc::new(RefCell::new(MCTSNode::new(root_state.clone()))),
-            nodes: HashMap::new(),
+            nodes: HashMap::with_hasher(WyHash::with_seed(0)),
             game: game
         };
         mcts.root = mcts.get_node(root_state);

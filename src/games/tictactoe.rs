@@ -2,15 +2,16 @@ use std::collections::HashMap;
 use std::fmt::{Display,Formatter,Result};
 use std::rc::Rc;
 use ndarray::{Array2,Axis,s};
+use wyhash2::WyHash;
 use crate::game::{Game,GameState};
 
 pub struct TicTacToe {
-    pub game_states: HashMap<Array2<i8>, Rc<TicTacToeState>>
+    pub game_states: HashMap<Array2<i8>, Rc<TicTacToeState>,WyHash>
 }
 
 impl TicTacToe {
     pub fn new() -> Self {
-        TicTacToe { game_states: HashMap::new() }
+        TicTacToe { game_states: HashMap::with_hasher(WyHash::with_seed(0)) }
     }
 }
 
